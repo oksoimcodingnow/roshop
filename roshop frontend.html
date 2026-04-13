@@ -11,8 +11,37 @@
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <!-- Links our stylesheet that handles all the visual styling -->
   <link rel="stylesheet" href="style.css" />
+  <!-- Firebase compat SDK (works with regular script tags, no bundler needed) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <script src="firebase-init.js"></script>
 </head>
 <body>
+
+  <!-- AUTH MODAL: shown on load if user is not logged in. Sits above everything (z-index 1000) -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-modal">
+      <div class="auth-logo">🎮 RoShop</div>
+      <h2 class="auth-title">Welcome back</h2>
+      <!-- Login / Register tab switcher -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login"    onclick="switchAuthTab('login')">Login</button>
+        <button class="auth-tab"        id="tab-register" onclick="switchAuthTab('register')">Register</button>
+      </div>
+      <!-- Form fields -->
+      <div class="auth-form">
+        <input type="email"    id="auth-email"    class="auth-input" placeholder="Email address" />
+        <div class="password-wrap">
+          <input type="password" id="auth-password" class="auth-input" placeholder="Password" />
+          <button type="button" class="eye-btn" onclick="togglePassword()" id="eye-btn">👁</button>
+        </div>
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-submit-btn" id="auth-submit" onclick="submitAuth()">Login</button>
+      </div>
+    </div>
+  </div>
 
   <!-- GAME SELECT OVERLAY: full-screen prompt shown on first load, dismissed after picking a game -->
   <div class="game-select-overlay" id="game-select-overlay">
@@ -65,8 +94,12 @@
           <button class="currency-opt"        id="opt-thb" onclick="setCurrency('thb', event)">🇹🇭 THB (฿)</button>
         </div>
       </div>
+      <!-- Logged-in user display — hidden until auth state confirms login -->
+      <div class="user-pill" id="user-pill" style="display:none">
+        <span id="user-email-display"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
       <!-- Cart button — onclick opens the cart slide-in panel -->
-      <!-- cart-count badge updates dynamically via JS when items are added -->
       <button class="cart-btn" onclick="openCart()">
         🛒 Cart
         <span class="cart-count" id="cart-count">0</span>

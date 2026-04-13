@@ -1,39 +1,104 @@
 // ── PRODUCT DATA ──
-// game field: "mm2" | "adoptme" | "robux"
-// For mm2 + adoptme: price is in Robux (converted to USD/THB for display)
-// For robux packages: price is in USD, robuxAmt = how many Robux the buyer receives
-const ITEMS = [
+// Items are loaded from Firestore by fetchItems() after login.
+// To add/edit/remove items, use the Firebase console — no code changes needed.
+let ITEMS = [];
 
-  // ── MURDER MYSTERY 2 — Knives & Guns ──
-  { id:1,  game:"mm2", name:"Chroma Laser",       desc:"Ultra rare chroma knife",          price:1200, emoji:"🔴", bg:"bg-red",    badge:"chroma",  badgeCls:"badge-limited", cat:"knives" },
-  { id:2,  game:"mm2", name:"Darkheart",           desc:"Godly dark assassin blade",        price:2000, emoji:"🖤", bg:"bg-purple", badge:"godly",   badgeCls:"badge-limited", cat:"knives" },
-  { id:3,  game:"mm2", name:"Elderwood Scythe",    desc:"Legendary harvester weapon",       price:800,  emoji:"⚔️", bg:"bg-green",  badge:"epic",    badgeCls:"badge-epic",    cat:"knives" },
-  { id:4,  game:"mm2", name:"Corrupt",             desc:"Classic corrupt blade",            price:600,  emoji:"🗡️", bg:"bg-blue",   badge:"rare",    badgeCls:"badge-rare",    cat:"knives" },
-  { id:5,  game:"mm2", name:"Antique Hallows",     desc:"Spooky limited knife",             price:1500, emoji:"🎃", bg:"bg-amber",  badge:"limited", badgeCls:"badge-limited", cat:"knives" },
-  { id:6,  game:"mm2", name:"Chroma Handcannon",   desc:"Chroma godly gun",                 price:3000, emoji:"🔫", bg:"bg-sky",    badge:"chroma",  badgeCls:"badge-limited", cat:"guns"   },
-  { id:7,  game:"mm2", name:"Icicle",              desc:"Frosty rare knife",                price:700,  emoji:"❄️", bg:"bg-sky",    badge:"rare",    badgeCls:"badge-rare",    cat:"knives" },
-  { id:8,  game:"mm2", name:"Luger",               desc:"Classic rare gun",                 price:500,  emoji:"🔧", bg:"bg-teal",   badge:"rare",    badgeCls:"badge-rare",    cat:"guns"   },
+// ── AUTH ──
+let currentUser = null;
 
-  // ── ADOPT ME — Pets ──
-  { id:9,  game:"adoptme", name:"Shadow Dragon",   desc:"Most legendary pet ever",          price:5000, emoji:"🐲", bg:"bg-purple", badge:"limited", badgeCls:"badge-limited", cat:"pets"  },
-  { id:10, game:"adoptme", name:"Frost Dragon",    desc:"Icy rare winter dragon",           price:4500, emoji:"❄️", bg:"bg-sky",    badge:"limited", badgeCls:"badge-limited", cat:"pets"  },
-  { id:11, game:"adoptme", name:"Neon Bat Dragon", desc:"Glowing neon bat pet",             price:3000, emoji:"🦇", bg:"bg-purple", badge:"neon",    badgeCls:"badge-rare",    cat:"neon"  },
-  { id:12, game:"adoptme", name:"Mega Owl",        desc:"Mega neon ultra rare pet",         price:2500, emoji:"🦉", bg:"bg-amber",  badge:"mega",    badgeCls:"badge-epic",    cat:"mega"  },
-  { id:13, game:"adoptme", name:"Golden Unicorn",  desc:"Shiny golden ride pet",            price:1800, emoji:"🦄", bg:"bg-pink",   badge:"rare",    badgeCls:"badge-rare",    cat:"pets"  },
-  { id:14, game:"adoptme", name:"Turtle",          desc:"Classic legendary ride turtle",    price:1200, emoji:"🐢", bg:"bg-green",  badge:"new",     badgeCls:"badge-new",     cat:"pets"  },
-  { id:17, game:"adoptme", name:"Arctic Reindeer", desc:"Cools down the coldest climates",  price:800,  emoji:"🦌", bg:"bg-sky",    badge:"rare",    badgeCls:"badge-rare",    cat:"pets",  img:"Pet Picture/Adopt Me/Arctic Reindeer.png" },
-  { id:15, game:"adoptme", name:"Neon Parrot",     desc:"Neon colourful parrot pet",        price:900,  emoji:"🦜", bg:"bg-teal",   badge:"neon",    badgeCls:"badge-rare",    cat:"neon"  },
-  { id:16, game:"adoptme", name:"Mega Griffin",    desc:"Mega neon legendary griffin",      price:3500, emoji:"🦅", bg:"bg-red",    badge:"mega",    badgeCls:"badge-epic",    cat:"mega"  },
+// Fires every time login state changes (on load, login, logout)
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  if (user) {
+    // Logged in — hide auth modal, show user in nav
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('user-pill').style.display    = 'flex';
+    document.getElementById('user-email-display').textContent = user.email;
+    if (ITEMS.length === 0) fetchItems(); // Load items from Firestore on first login
+  } else {
+    // Not logged in — show auth modal, hide user pill
+    document.getElementById('auth-overlay').style.display = 'flex';
+    document.getElementById('user-pill').style.display    = 'none';
+  }
+});
 
-  // ── ROBUX PACKAGES ──
-  // price = USD cost, robuxAmt = Robux buyer receives
-  // Rate: $5 = 1,000 Robux. Prices do NOT include Roblox's 30% marketplace tax.
-  { id:17, game:"robux", name:"400 Robux",    desc:"Starter pack",           price:2,  robuxAmt:400,   emoji:"💎", bg:"bg-blue",   badge:"starter", badgeCls:"badge-new",     cat:"package" },
-  { id:18, game:"robux", name:"1,000 Robux",  desc:"Best value — $5 deal",  price:5,  robuxAmt:1000,  emoji:"💎", bg:"bg-purple", badge:"best",    badgeCls:"badge-epic",    cat:"package" },
-  { id:19, game:"robux", name:"2,000 Robux",  desc:"Double the fun",        price:10, robuxAmt:2000,  emoji:"💎", bg:"bg-teal",   badge:"popular", badgeCls:"badge-rare",    cat:"package" },
-  { id:20, game:"robux", name:"5,000 Robux",  desc:"Power player pack",     price:25, robuxAmt:5000,  emoji:"💎", bg:"bg-amber",  badge:"value",   badgeCls:"badge-hot",     cat:"package" },
-  { id:21, game:"robux", name:"10,000 Robux", desc:"Ultimate top-up",       price:50, robuxAmt:10000, emoji:"💎", bg:"bg-red",    badge:"mega",    badgeCls:"badge-limited", cat:"package" },
-];
+// Toggles password field between visible and hidden
+function togglePassword() {
+  const input = document.getElementById('auth-password');
+  const btn   = document.getElementById('eye-btn');
+  if (input.type === 'password') {
+    input.type   = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type   = 'password';
+    btn.textContent = '👁';
+  }
+}
+
+// Toggle between Login and Register tabs
+function switchAuthTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('auth-submit').textContent = tab === 'login' ? 'Login' : 'Register';
+  document.getElementById('auth-title').textContent  = tab === 'login' ? 'Welcome back' : 'Create account';
+  document.getElementById('auth-error').textContent  = '';
+}
+
+// Handles both login and register depending on active tab
+function submitAuth() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const isLogin  = document.getElementById('tab-login').classList.contains('active');
+  const btn      = document.getElementById('auth-submit');
+  const errorEl  = document.getElementById('auth-error');
+
+  if (!email || !password) { errorEl.textContent = 'Please fill in all fields.'; return; }
+
+  btn.textContent = 'Loading...';
+  btn.disabled    = true;
+  errorEl.textContent = '';
+
+  const promise = isLogin
+    ? auth.signInWithEmailAndPassword(email, password)
+    : auth.createUserWithEmailAndPassword(email, password);
+
+  promise
+    .then(result => {
+      if (!isLogin) {
+        // New user — create their Firestore profile
+        db.collection('users').doc(result.user.uid).set({
+          email:     result.user.email,
+          balance:   4250,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    })
+    .catch(err => {
+      // Show a friendly error message
+      const messages = {
+        'auth/invalid-email':        'Invalid email address.',
+        'auth/user-not-found':       'No account found with that email.',
+        'auth/wrong-password':       'Incorrect password.',
+        'auth/email-already-in-use': 'An account with that email already exists.',
+        'auth/weak-password':        'Password must be at least 6 characters.',
+        'auth/invalid-credential':   'Incorrect email or password.',
+      };
+      errorEl.textContent = messages[err.code] || err.message;
+      btn.textContent     = isLogin ? 'Login' : 'Register';
+      btn.disabled        = false;
+    });
+}
+
+function logout() {
+  auth.signOut();
+  // Reset shop state on logout
+  selectedGame  = null;
+  currentFilter = 'all';
+  document.getElementById('items-grid').innerHTML = '';
+  const overlay = document.getElementById('game-select-overlay');
+  overlay.style.display = '';
+  overlay.classList.remove('dismissed');
+}
 
 // ── GAME SELECTION ──
 // Stores which game the user picked on the welcome screen.
@@ -475,10 +540,28 @@ function previewSlip(input) {
   reader.readAsDataURL(input.files[0]);
 }
 
-// Called when the user submits their slip.
-// NOTE: without a backend this just shows a confirmation toast.
-// To add real verification, integrate the SlipOK API (slipok.com) via a backend endpoint.
+// Called when the user submits their slip — saves order to Firestore then clears cart.
 function submitSlip() {
+  const selected  = document.querySelector('input[name="payment"]:checked').value;
+  const totalUsd  = cart.reduce((sum, item) =>
+    sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd), 0);
+  const cfg       = CURRENCY_CONFIG[activeCurrency];
+  const totalAmt  = activeCurrency === 'usd' ? totalUsd : totalUsd * RATES.thbPerUsd;
+
+  // Save order to Firestore under the logged-in user
+  if (currentUser) {
+    db.collection('orders').add({
+      userId:        currentUser.uid,
+      email:         currentUser.email,
+      items:         cart.map(i => ({ id: i.id, name: i.name, game: i.game, price: i.price })),
+      paymentMethod: selected,
+      totalUsd:      parseFloat(totalUsd.toFixed(2)),
+      totalDisplay:  `${cfg.symbol}${cfg.format(totalAmt)}`,
+      status:        'pending',
+      createdAt:     firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
   closeSlipModal();
   showToast('📋 Order submitted! We\'ll verify your slip and confirm shortly.');
   cart = [];
@@ -498,6 +581,18 @@ function showToast(msg) {
 }
 
 
-// ── INIT ──
-// Runs immediately when the page loads to populate the items grid for the first time.
-renderItems();
+// ── FETCH ITEMS FROM FIRESTORE ──
+// Loads all documents from the 'items' collection, populates ITEMS, then renders.
+// Called once after the user logs in (inside auth.onAuthStateChanged).
+async function fetchItems() {
+  const grid = document.getElementById('items-grid');
+  grid.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Loading items...</p></div>`;
+  try {
+    const snapshot = await db.collection('items').get();
+    ITEMS = snapshot.docs.map(doc => doc.data());
+    renderItems();
+  } catch (err) {
+    grid.innerHTML = `<div class="empty">⚠️ Failed to load items. Please refresh the page.</div>`;
+    console.error('Firestore fetch failed:', err);
+  }
+}
