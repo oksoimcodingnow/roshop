@@ -1,0 +1,1189 @@
+/* ── RESET & VARIABLES ── */
+/* box-sizing: border-box makes width/height include padding and border (not just content),
+   which makes layout math much more predictable.
+   margin/padding: 0 removes browser default spacing so everything starts clean. */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* CSS custom properties (variables) defined on :root so any element can use them with var().
+   Changing a value here updates it everywhere it's used on the page. */
+:root {
+  --red: #ff3860;           /* Primary brand colour — used on buttons, active states, prices */
+  --red-dark: #e0284f;      /* Darker red for hover states on red buttons */
+  --orange: #ff6b35;        /* Used in the hero gradient */
+  --green: #00b06f;         /* Used for the R$ dot on balance/price labels */
+  --purple: #7f77dd;        /* Badge colour for "rare" items */
+  --amber: #ef9f27;         /* Thumbnail bg and badge colour for "epic" items */
+  --teal: #1d9e75;          /* Badge colour for "limited" items */
+  --blue: #378add;          /* Badge colour for "new" items */
+  --bg: #f7f6fb;            /* Page background — off-white with a slight purple tint */
+  --card: #ffffff;          /* Card/panel background — pure white */
+  --text: #1a1a2e;          /* Primary text colour — near-black with a blue tint */
+  --muted: #666680;         /* Secondary text colour — grey, used for descriptions and placeholders */
+  --border: rgba(0,0,0,0.08); /* Subtle border colour used on cards and inputs */
+  --radius: 16px;           /* Default border radius for cards and panels */
+}
+
+/* Base body styles — sets the font, background, text colour, and minimum full-page height */
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh; /* Ensures the footer stays at the bottom even on short pages */
+}
+
+
+/* ── GAME SELECT OVERLAY ── */
+/* Full-screen welcome screen shown on first load — sits above everything (z-index 999) */
+.game-select-overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeUp 0.3s ease;
+}
+
+/* Fade-out when dismissed class is added by JS */
+.game-select-overlay.dismissed {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* Centred white card containing the prompt and game options */
+.game-select-box {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  max-width: 560px;
+  width: 100%;
+}
+
+.game-select-logo {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--red);
+  margin-bottom: 1.5rem;
+}
+
+.game-select-box h2 {
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 900;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.game-select-box p {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 2rem;
+}
+
+/* Row of 3 game cards */
+.game-cards {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Individual game card — large clickable button with emoji + label */
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 150px;
+  padding: 1.5rem 1rem;
+  border-radius: 20px;
+  border: 2px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.07);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  font-family: 'Nunito', sans-serif;
+}
+
+.game-card:hover {
+  border-color: var(--red);
+  background: rgba(255,56,96,0.15);
+  transform: translateY(-4px);
+}
+
+/* Selected state after clicking — stays highlighted before overlay fades */
+.game-card.selected {
+  border-color: var(--red);
+  background: rgba(255,56,96,0.25);
+  transform: scale(1.05);
+}
+
+.game-card-icon {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.game-card-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: white;
+  line-height: 1.3;
+}
+
+/* ── NAV ── */
+/* Sticky navbar that stays at the top of the viewport while scrolling.
+   z-index: 100 keeps it above page content but below the cart overlay (z-index: 200). */
+nav {
+  background: white;
+  border-bottom: 1.5px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Logo left, links centre, balance+cart right */
+  height: 64px;
+}
+
+/* Brand logo — bold red text with no underline */
+.nav-logo {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+/* "← Change Game" button next to the logo */
+.back-btn {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  padding: 6px 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.back-btn:hover {
+  background: #fff0f3;
+  color: var(--red);
+  border-color: var(--red);
+}
+
+/* Horizontal list of nav links — gap replaces margin between items */
+.nav-links {
+  display: flex;
+  gap: 6px;
+  list-style: none; /* Removes bullet points from the <ul> */
+}
+
+/* Individual nav link styles — pill-shaped on hover/active */
+.nav-links a {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 7px 14px;
+  border-radius: 50px; /* Full pill shape */
+  transition: background 0.15s, color 0.15s; /* Smooth colour change on hover */
+}
+
+/* Highlighted state for hovered and currently active nav link */
+.nav-links a:hover,
+.nav-links a.active {
+  background: #fff0f3; /* Very light red background */
+  color: var(--red);
+}
+
+/* Right section of the nav that holds the balance pill and cart button */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Robux balance display — pill-shaped with a light red tint */
+.balance-pill {
+  background: #fff0f3;
+  border: 1.5px solid #ffc0cc;
+  border-radius: 50px;
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Balance pill is now a relative container so the dropdown positions under it */
+.balance-pill {
+  position: relative;
+  cursor: pointer;
+  user-select: none; /* Prevents text from being highlighted when clicking */
+}
+
+/* Small downward arrow at the end of the balance pill */
+.currency-arrow {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+/* Currency dropdown menu — hidden by default, shown when .open is added */
+.currency-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px); /* Appears just below the pill with a small gap */
+  right: 0;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  overflow: hidden;
+  z-index: 300;
+  min-width: 160px;
+  animation: fadeUp 0.15s ease;
+}
+
+.currency-menu.open { display: block; }
+
+/* Individual option row inside the currency dropdown */
+.currency-opt {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.currency-opt:hover  { background: #f7f6fb; }
+
+/* Highlighted row for the currently active currency */
+.currency-opt.active {
+  background: #fff0f3;
+  color: var(--red);
+}
+
+/* The small green circle with "R$" used inside balance pill and item price labels */
+.rbx-dot {
+  width: 18px;
+  height: 18px;
+  background: var(--green);
+  border-radius: 50%; /* Perfect circle */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  color: white;
+  flex-shrink: 0; /* Prevents it from shrinking if the container gets too narrow */
+}
+
+/* Cart button in the top-right of the nav */
+.cart-btn {
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 9px 20px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cart-btn:hover  { background: var(--red-dark); }
+.cart-btn:active { transform: scale(0.97); } /* Slight shrink on click for tactile feel */
+
+/* Item count badge inside the cart button — white pill with red text */
+.cart-count {
+  background: white;
+  color: var(--red);
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 1px 7px;
+  min-width: 20px;    /* Stays round even when count is a single digit */
+  text-align: center;
+}
+
+
+/* ── HERO ── */
+/* Full-width banner with a diagonal gradient from orange → red → magenta */
+.hero {
+  background: linear-gradient(135deg, var(--orange) 0%, var(--red) 55%, #c0107f 100%);
+  padding: 3.5rem 2rem 3rem;
+  text-align: center;
+  position: relative; /* Needed so the ::before pseudo-element positions relative to this */
+  overflow: hidden;   /* Clips the pattern so it doesn't spill outside the hero */
+}
+
+/* Subtle repeating dot pattern overlaid on the hero gradient for texture.
+   pointer-events: none means it doesn't block clicks on the search bar. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0; /* Shorthand for top/right/bottom/left: 0 — covers the full hero */
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='10'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Hero headline — clamp() scales font size fluidly between 32px and 52px based on viewport width */
+.hero h1 {
+  font-size: clamp(32px, 6vw, 52px);
+  font-weight: 900;
+  color: white;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+/* Tagline below the headline — slightly transparent white */
+.hero p {
+  font-size: 17px;
+  color: rgba(255,255,255,0.88);
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* Search bar container — centres and limits width of the input+button row */
+.hero-search {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto; /* Centres the search bar horizontally */
+}
+
+/* Search text input — takes all available space (flex: 1) */
+.hero-search input {
+  flex: 1;
+  padding: 13px 20px;
+  border-radius: 50px;
+  border: none;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  outline: none; /* Removes the default blue focus ring */
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+/* "Search" button next to the input — semi-transparent white pill */
+.hero-search button {
+  padding: 13px 22px;
+  border-radius: 50px;
+  border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.25);
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hero-search button:hover { background: rgba(255,255,255,0.4); }
+
+
+/* ── MAIN ── */
+/* Centred content wrapper with max width and breathing room on all sides */
+.main {
+  max-width: 1100px;
+  margin: 0 auto;  /* Centres the block horizontally */
+  padding: 2rem 1.5rem 4rem;
+}
+
+
+/* ── BANNERS ── */
+/* Responsive grid of promotional banners — auto-fit fills the row with as many columns as fit,
+   each at least 220px wide. On narrow screens it stacks to one column. */
+.banners {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+/* Base banner card — flex row with icon on the left and text on the right */
+.banner {
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: fadeUp 0.4s ease both; /* Slides up when the page loads */
+}
+
+/* Each banner variant has a different background and border tint */
+.banner.sale { background: #fff8e6; border: 1.5px solid #f5c47a; } /* Yellow/gold — sale */
+.banner.new  { background: #e8f4ff; border: 1.5px solid #85b7eb; } /* Blue — new items */
+.banner.free { background: #e8fff4; border: 1.5px solid #5dcaa5; } /* Green — free item */
+
+/* Banner emoji — large and fixed-size so it doesn't shrink */
+.banner-icon { font-size: 30px; flex-shrink: 0; }
+
+/* Banner heading text — bold and colour-matched to each variant */
+.banner h3 { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+.banner.sale h3 { color: #633806; }
+.banner.new h3  { color: #042c53; }
+.banner.free h3 { color: #04342c; }
+
+/* Banner description text — lighter weight and colour-matched */
+.banner p { font-size: 12px; font-weight: 600; }
+.banner.sale p { color: #854f0b; }
+.banner.new p  { color: #185fa5; }
+.banner.free p { color: #0f6e56; }
+
+
+/* ── FILTERS ── */
+/* Row that holds the filter buttons on the left and sort dropdown on the right.
+   flex-wrap lets the dropdown drop to a new line on very narrow screens. */
+.filters-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+
+/* Container for the filter buttons — wraps onto a second line on small screens */
+.filters {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* Individual filter pill buttons */
+.filter-btn {
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 1.5px solid var(--border);
+  background: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s; /* Animates all changing properties (bg, border, colour) */
+}
+
+/* Active/hovered filter button — filled red to show selection */
+.filter-btn:hover,
+.filter-btn.active {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+
+/* Sort order dropdown — pill-shaped to match the filter buttons */
+.sort-select {
+  padding: 8px 14px;
+  border-radius: 50px;
+  border: 1.5px solid var(--border);
+  background: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  outline: none; /* Removes default browser focus ring */
+}
+
+
+/* ── SECTION LABEL ── */
+/* The bold heading above the item grid (e.g. "🔥 Popular Right Now") */
+.section-label {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+
+/* ── ITEMS GRID ── */
+/* Responsive grid for item cards — auto-fill creates as many columns as fit at 195px+ each */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 14px;
+}
+
+/* Individual item card — white rounded box with a hover lift effect */
+.item-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  overflow: hidden;  /* Clips the thumbnail so it respects the card's border-radius */
+  cursor: pointer;
+  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+  animation: fadeUp 0.35s ease both; /* Staggered fade-in set by JS via animation-delay */
+}
+
+/* Hover state — card lifts up and gets a red glow border */
+.item-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--red);
+  box-shadow: 0 8px 28px rgba(255,56,96,0.15);
+}
+
+/* Item thumbnail — square area above the info section that shows the emoji */
+.item-thumb {
+  width: 100%;
+  aspect-ratio: 1; /* Keeps it perfectly square regardless of the card width */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  position: relative; /* Needed so the badge can be positioned inside it */
+}
+
+/* Background colour classes applied to item thumbnails (one per item in the data) */
+.bg-purple { background: #f3f0ff; }
+.bg-teal   { background: #e0f7f0; }
+.bg-amber  { background: #fff7e6; }
+.bg-pink   { background: #fef0f5; }
+.bg-blue   { background: #eaf3ff; }
+.bg-green  { background: #f0f9e8; }
+.bg-red    { background: #fff0f3; }
+.bg-sky    { background: #e8f7ff; }
+
+/* Custom image inside the item thumbnail — fills the square with padding so it doesn't touch edges */
+.item-img {
+  width: 75%;
+  height: 75%;
+  object-fit: contain; /* Keeps the full image visible without cropping */
+}
+
+/* Badge label positioned in the top-left corner of the thumbnail */
+.badge {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 50px;
+  text-transform: uppercase; /* Forces text like "rare" to display as "RARE" */
+  letter-spacing: 0.5px;
+}
+
+/* Badge colour variants — each matches an item rarity/status type */
+.badge-new     { background: var(--blue);   color: white; }
+.badge-rare    { background: var(--purple); color: white; }
+.badge-epic    { background: var(--amber);  color: #5a3600; } /* Dark text on yellow bg for contrast */
+.badge-limited { background: var(--teal);   color: white; }
+.badge-hot     { background: var(--red);    color: white; }
+
+/* Info section below the thumbnail — contains name, description, price, buy button */
+.item-info {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border); /* Separator line between thumbnail and info */
+}
+
+/* Item name — bold, single line, truncated with ellipsis if too long */
+.item-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Shows "..." instead of overflowing the card edge */
+}
+
+/* Short description text below the name — muted colour */
+.item-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* Footer row inside the info section — price on left, buy button on right */
+.item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Price display — R$ dot + number, bold and dark */
+.price {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+/* "Buy" button on each item card */
+.buy-btn {
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 7px 15px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.buy-btn:hover  { background: var(--red-dark); }
+.buy-btn:active { transform: scale(0.94); } /* Shrinks slightly when clicked */
+
+
+/* ── ROBUX PACKAGE CARDS ── */
+/* Gold top border to distinguish Robux packages from regular item cards */
+.robux-card {
+  border-color: var(--amber);
+}
+
+.robux-card:hover {
+  border-color: var(--amber);
+  box-shadow: 0 8px 28px rgba(239,159,39,0.2);
+}
+
+/* Price block for Robux packages — stacked layout */
+.pkg-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Big green "R$ 1,000" amount — the main value shown */
+.pkg-robux {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--green);
+}
+
+/* Smaller "$ 5.00" cost row below the R$ amount */
+.pkg-cost {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* Tax disclaimer shown at the bottom of each Robux package card */
+.tax-note {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  background: #fffdf0;
+}
+
+/* ── EMPTY STATE ── */
+/* Shown in the grid when no items match the current search/filter */
+.empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  grid-column: 1 / -1; /* Spans all grid columns so it centres across the full grid width */
+}
+
+
+/* ── CART OVERLAY ── */
+/* Full-screen semi-transparent backdrop that appears behind the cart panel.
+   display: none by default; JS adds the "open" class to show it. */
+.cart-overlay {
+  position: fixed;      /* Covers the whole viewport, regardless of scroll position */
+  inset: 0;             /* top/right/bottom/left: 0 */
+  background: rgba(0,0,0,0.35); /* Dark translucent backdrop */
+  z-index: 200;         /* Above everything else (nav is 100, page content is below) */
+  display: none;
+  align-items: flex-start;
+  justify-content: flex-end; /* Aligns the panel to the right edge */
+}
+
+/* When JS adds the "open" class, the overlay becomes visible */
+.cart-overlay.open { display: flex; }
+
+/* The white slide-in panel on the right side of the screen */
+.cart-panel {
+  background: white;
+  width: min(400px, 100vw); /* 400px on desktop, full width on mobile */
+  height: 100vh;            /* Full viewport height */
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;         /* Scrollable if there are many cart items */
+  animation: slideIn 0.25s ease; /* Slides in from the right when opened */
+}
+
+/* Top row of the cart panel — title on left, close button on right */
+.cart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cart-header h2 {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+/* Circular close (X) button in the top-right of the cart panel */
+.close-btn {
+  background: #f5f5f5;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.close-btn:hover { background: #ffe0e6; } /* Light red on hover to hint it closes the cart */
+
+/* Message shown in the cart when it has no items */
+.cart-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Individual item row inside the cart panel */
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+}
+
+/* Coloured square showing the item's emoji inside the cart */
+.cart-item-icon {
+  font-size: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Never shrinks — keeps consistent icon size */
+}
+
+/* Text block next to the cart item icon — name and price stacked vertically */
+.cart-item-info { flex: 1; } /* Takes remaining space between icon and remove button */
+.cart-item-info .name   { font-size: 14px; font-weight: 800; }
+.cart-item-info .cprice { font-size: 13px; font-weight: 700; color: var(--red); }
+
+/* The "✕" remove button on each cart item row */
+.remove-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.remove-btn:hover { background: #fff0f3; color: var(--red); }
+
+/* Bottom section of the cart panel — total price and checkout button.
+   margin-top: auto pushes it to the very bottom of the flex column. */
+.cart-footer {
+  margin-top: auto;
+  border-top: 1.5px solid var(--border);
+  padding-top: 1rem;
+}
+
+/* Total row — "Total" label on left, amount on right */
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+/* Full-width checkout button at the bottom of the cart */
+.checkout-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.checkout-btn:hover  { background: var(--red-dark); }
+.checkout-btn:active { transform: scale(0.98); }
+
+
+/* ── PAYMENT METHOD BOX ── */
+/* Container that wraps the payment label and the four option cards */
+.payment-box {
+  background: #f7f6fb;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+/* "Payment Method" label above the cards */
+.payment-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+/* Grid of 4 payment option cards — equal width, wraps on very narrow screens */
+.payment-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* Individual payment card — acts as a styled radio button.
+   cursor: pointer and the hidden <input> inside make the whole card clickable. */
+.payment-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  text-align: center;
+  position: relative;
+}
+
+/* Hide the actual radio input — the card styling replaces it visually */
+.payment-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Hover state — subtle red border hint */
+.payment-option:hover {
+  border-color: var(--red);
+}
+
+/* Selected state — red border + light red background */
+.payment-option.active {
+  border-color: var(--red);
+  background: #fff0f3;
+  box-shadow: 0 0 0 3px rgba(255,56,96,0.1);
+}
+
+/* Large emoji icon at the top of each payment card */
+.pay-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Payment method name + sub-label below the icon */
+.pay-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.pay-name small {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── PAYMENT DETAILS BOX ── */
+/* Appears below the payment option cards, content changes per method */
+.pay-detail-box {
+  margin-top: 12px;
+  border-top: 1.5px solid var(--border);
+  padding-top: 12px;
+}
+
+.pay-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+/* SCB QR image — constrained so it fits neatly inside the cart panel */
+.qr-img {
+  width: 100%;
+  max-width: 220px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+}
+
+/* TrueMoney phone number — large and bold so it's easy to read */
+.truemoney-logo {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.truemoney-phone {
+  font-size: 26px;
+  font-weight: 900;
+  color: #f26522; /* TrueMoney orange */
+  letter-spacing: 1px;
+}
+
+/* Crypto placeholder icon */
+.crypto-placeholder {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.pay-detail-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── SLIP UPLOAD MODAL ── */
+/* Full-screen backdrop, same pattern as the cart overlay */
+.slip-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.slip-overlay.open { display: flex; }
+
+/* The white modal card */
+.slip-modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 380px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fadeUp 0.25s ease;
+}
+
+.slip-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slip-modal-header h3 {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+/* Order summary rows at the top of the slip modal */
+.slip-summary {
+  background: #f7f6fb;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slip-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.slip-amount {
+  color: var(--red);
+  font-size: 15px;
+}
+
+/* Upload area — dashed border, click to trigger file picker */
+.slip-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+  position: relative;
+}
+
+.slip-upload-area:hover {
+  border-color: var(--red);
+  background: #fff8f9;
+}
+
+/* Placeholder content shown before an image is chosen */
+.slip-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.slip-placeholder span { font-size: 32px; }
+.slip-placeholder p    { font-size: 13px; font-weight: 700; }
+.slip-placeholder small{ font-size: 11px; font-weight: 600; }
+
+/* The preview image once a slip is uploaded */
+.slip-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+/* Submit button — disabled (grey) until slip is uploaded */
+.submit-slip-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+}
+
+.submit-slip-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.submit-slip-btn:not(:disabled):hover  { background: var(--red-dark); }
+.submit-slip-btn:not(:disabled):active { transform: scale(0.98); }
+
+/* Small note under the submit button */
+.slip-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── TOAST ── */
+/* Small notification pop-up that slides up from the bottom of the screen.
+   Starts off-screen (translateY 80px) and animates to its position when .show is added. */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px); /* Hidden below the visible area by default */
+  background: #1a1a2e;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none; /* Doesn't block clicks on content behind it */
+  z-index: 999;         /* Above everything, including the cart overlay */
+  white-space: nowrap;  /* Prevents the message from wrapping to two lines */
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); /* Springy bounce effect */
+}
+
+/* When JS adds this class, the toast slides up into view */
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+
+/* ── FOOTER ── */
+footer {
+  text-align: center;
+  padding: 2rem;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  border-top: 1.5px solid var(--border);
+  background: white;
+}
+
+
+/* ── ANIMATIONS ── */
+/* fadeUp: items fade in while sliding up slightly — used on cards and banners */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* slideIn: the cart panel slides in from the right edge of the screen */
+@keyframes slideIn {
+  from { transform: translateX(100%); } /* Starts fully off-screen to the right */
+  to   { transform: translateX(0); }
+}
+
+
+/* ── RESPONSIVE ── */
+/* Adjustments for screens 600px wide or narrower (phones).
+   Reduces padding, hides the nav links (the search bar in the hero replaces them). */
+@media (max-width: 600px) {
+  nav { padding: 0 1rem; }
+  .nav-links { display: none; } /* Hide nav links on mobile to save space */
+  .hero { padding: 2.5rem 1rem 2rem; }
+  .main { padding: 1.5rem 1rem 3rem; }
+}
