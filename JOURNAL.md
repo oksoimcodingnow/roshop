@@ -14,11 +14,13 @@ add them to a cart, and pay via Thai QR / TrueMoney / Crypto by uploading a paym
 
 | File | What it does |
 |------|-------------|
-| `roshop frontend.html` | The skeleton of every page element you see |
+| `index.html` | The main shop page (renamed from `roshop frontend.html`) |
+| `admin.html` | Admin panel — view and manage all orders |
+| `orders.html` | Customer order history page |
 | `style.css` | All colours, layouts, and animations |
 | `script.js` | All the logic — cart, filters, payments, login |
 | `firebase-init.js` | Connects the app to Firebase (our backend) |
-| `my bank acc.jpg` | SCB QR code image shown at checkout |
+| `payment/my bank acc.jpg` | SCB QR code image shown at checkout |
 
 ---
 
@@ -28,9 +30,19 @@ add them to a cart, and pay via Thai QR / TrueMoney / Crypto by uploading a paym
 > Firebase breaks when opened as `file://`.
 
 1. Open the project folder in **VS Code**
-2. Right-click `roshop frontend.html`
-3. Click **"Open with Live Server"**
-4. It opens at `http://127.0.0.1:5500` — Firebase works correctly here
+2. Right-click `index.html` → click **"Open with Live Server"**
+3. It opens at `http://127.0.0.1:5500` — Firebase works correctly here
+
+| Page | Local URL | What it is |
+|------|-----------|-----------|
+| Shop | `http://127.0.0.1:5500/index.html` | Main shop for customers |
+| My Orders | `http://127.0.0.1:5500/orders.html` | Customer order history |
+| Admin | `http://127.0.0.1:5500/admin.html` | Admin panel (your eyes only) |
+
+### Does the site run when my PC is off?
+**Yes** — the live site at `https://roshop-642dd.web.app` runs on Firebase's servers 24/7.
+You only need your PC on when you want to **make changes** to the code.
+The admin panel also works at `https://roshop-642dd.web.app/admin.html` without your PC.
 
 ---
 
@@ -192,6 +204,18 @@ git push
 4. Upload a screenshot of your payment slip
 5. Order gets saved to Firestore with status `"pending"`
 
+### Admin panel (`admin.html`)
+- Only accessible with the admin email (`hzdjdndb@gmail.com`)
+- Shows all orders with customer email, items, total, payment method, date, status
+- Click **Mark Delivered** to update an order's status
+- Works at `https://roshop-642dd.web.app/admin.html` — no PC needed, runs 24/7
+- View slip images by clicking "View Slip" on each order
+
+### Order history page (`orders.html`)
+- Customers click **My Items** in the nav to see their past orders
+- Shows each order's items, total, payment method, date, and status (pending/delivered)
+- Only shows orders belonging to the logged-in user
+
 ### Moving items to Firestore (the big migration)
 **Before:** All 21 items were hardcoded in `script.js` — had to edit code to change anything.
 
@@ -221,16 +245,21 @@ What we changed in code:
 
 ## To-Do List
 
-- [ ] Upload Arctic Reindeer image to Firebase Storage and link it in Firestore document 17
-- [ ] Lock items write rule back to `if false` in Firestore Rules (if not done yet)
-- [ ] Deploy to Firebase Hosting (gives the site a real public URL)
-- [ ] Order history page — customers can see their past orders
-- [ ] Admin panel — mark orders as delivered, view all pending orders
+- [x] Deploy to Firebase Hosting — live at `https://roshop-642dd.web.app`
+- [x] Admin panel — view and manage all orders
+- [x] Order history page — customers can see their past orders
+- [ ] AI-generated item images — replace emoji cards with real art
+- [ ] SlipOK integration — auto verify Thai QR payment slips
+- [ ] Custom domain (optional, ~$10-15/year)
 
 ---
 
 ## Useful Links
 
-- Firebase Console: https://console.firebase.google.com
-- GitHub Repo: https://github.com/oksoimcodingnow/roshop
-- Live exchange rate API: https://open.er-api.com/v6/latest/USD
+| What | URL |
+|------|-----|
+| Live shop | https://roshop-642dd.web.app |
+| Admin panel | https://roshop-642dd.web.app/admin.html |
+| Firebase Console | https://console.firebase.google.com |
+| GitHub Repo | https://github.com/oksoimcodingnow/roshop |
+| Live exchange rate API | https://open.er-api.com/v6/latest/USD |
