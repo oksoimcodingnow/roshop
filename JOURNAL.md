@@ -211,6 +211,17 @@ git push
 - Works at `https://roshop-642dd.web.app/admin.html` — no PC needed, runs 24/7
 - View slip images by clicking "View Slip" on each order
 
+### Spin wheel (`spin.html`)
+- Place an order of **$9.99 or more** → earn 1 free spin automatically
+- Go to `spin.html` → spin the wheel → win a discount (5%, 10%, 15%, 20%, 50% off) or "No luck"
+- Discount is saved to your Firestore user document, valid until midnight that day
+- Discount applies **automatically** in the cart — shown with strikethrough original price
+- Discount is cleared from Firestore after it's used at checkout
+- To manually give a test spin (in browser console on shop page):
+  ```js
+  db.collection('users').doc(auth.currentUser.uid).update({ spinsAvailable: 1 })
+  ```
+
 ### Order history page (`orders.html`)
 - Customers click **My Items** in the nav to see their past orders
 - Shows each order's items, total, payment method, date, and status (pending/delivered)
@@ -248,6 +259,7 @@ What we changed in code:
 - [x] Deploy to Firebase Hosting — live at `https://roshop-642dd.web.app`
 - [x] Admin panel — view and manage all orders
 - [x] Order history page — customers can see their past orders
+- [x] Spin wheel — earn spins from $9.99+ orders, win discount codes
 - [ ] AI-generated item images — replace emoji cards with real art
 - [ ] SlipOK integration — auto verify Thai QR payment slips
 - [ ] Custom domain (optional, ~$10-15/year)
