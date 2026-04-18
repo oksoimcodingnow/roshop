@@ -4,7 +4,8 @@
 let ITEMS = [];
 
 // ── AUTH ──
-let currentUser = null;
+let currentUser     = null;
+let activeDiscount  = null; // { percent, expiresAt } — loaded from Firestore on login
 
 // Fires every time login state changes (on load, login, logout)
 auth.onAuthStateChanged(user => {
@@ -15,6 +16,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById('user-pill').style.display    = 'flex';
     document.getElementById('user-email-display').textContent = user.email;
     if (ITEMS.length === 0) fetchItems(); // Load items from Firestore on first login
+    loadUserDiscount(); // Check if they have an active discount
   } else {
     // Not logged in — show auth modal, hide user pill
     document.getElementById('auth-overlay').style.display = 'flex';
@@ -89,8 +91,30 @@ function submitAuth() {
     });
 }
 
+// Loads the user's active discount from Firestore and stores it in activeDiscount.
+// Called after login — used to apply the discount automatically in the cart.
+async function loadUserDiscount() {
+  if (!currentUser) return;
+  try {
+    const doc  = await db.collection('users').doc(currentUser.uid).get();
+    const data = doc.data();
+    if (data && data.activeDiscount && data.activeDiscount.expiresAt) {
+      const expiry = data.activeDiscount.expiresAt.toDate();
+      if (expiry > new Date()) {
+        activeDiscount = data.activeDiscount;
+      } else {
+        activeDiscount = null;
+        db.collection('users').doc(currentUser.uid).update({ activeDiscount: null });
+      }
+    } else {
+      activeDiscount = null;
+    }
+  } catch(e) { activeDiscount = null; }
+}
+
 function logout() {
   auth.signOut();
+  activeDiscount = null;
   // Reset shop state on logout
   selectedGame  = null;
   currentFilter = 'all';
@@ -458,8 +482,22 @@ function renderCart() {
   const totalUsd = cart.reduce((sum, item) => {
     return sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd);
   }, 0);
-  const totalAmt = activeCurrency === 'usd' ? totalUsd : totalUsd * RATES.thbPerUsd;
-  document.getElementById('cart-total-price').textContent = `${cfg.symbol}${cfg.format(totalAmt)}`;
+
+  // Apply active discount if available
+  const discountPct      = (activeDiscount && activeDiscount.expiresAt &&
+    activeDiscount.expiresAt.toDate() > new Date()) ? activeDiscount.percent : 0;
+  const discountedUsd    = totalUsd * (1 - discountPct / 100);
+  const totalAmt         = activeCurrency === 'usd' ? totalUsd       : totalUsd * RATES.thbPerUsd;
+  const discountedAmt    = activeCurrency === 'usd' ? discountedUsd  : discountedUsd * RATES.thbPerUsd;
+
+  if (discountPct > 0) {
+    document.getElementById('cart-total-price').innerHTML =
+      `<span style="text-decoration:line-through;color:#aaa;font-size:13px">${cfg.symbol}${cfg.format(totalAmt)}</span>
+       <span style="color:#00b06f"> ${cfg.symbol}${cfg.format(discountedAmt)}</span>
+       <span style="font-size:12px;background:#d1e7dd;color:#0a3622;padding:2px 8px;border-radius:20px;margin-left:4px">${discountPct}% OFF 🎉</span>`;
+  } else {
+    document.getElementById('cart-total-price').textContent = `${cfg.symbol}${cfg.format(totalAmt)}`;
+  }
 
   // Show the footer now that there are items
   footer.style.display = 'block';
@@ -542,11 +580,14 @@ function previewSlip(input) {
 
 // Called when the user submits their slip — saves order to Firestore then clears cart.
 function submitSlip() {
-  const selected  = document.querySelector('input[name="payment"]:checked').value;
-  const totalUsd  = cart.reduce((sum, item) =>
+  const selected     = document.querySelector('input[name="payment"]:checked').value;
+  const totalUsd     = cart.reduce((sum, item) =>
     sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd), 0);
-  const cfg       = CURRENCY_CONFIG[activeCurrency];
-  const totalAmt  = activeCurrency === 'usd' ? totalUsd : totalUsd * RATES.thbPerUsd;
+  const discountPct  = (activeDiscount && activeDiscount.expiresAt &&
+    activeDiscount.expiresAt.toDate() > new Date()) ? activeDiscount.percent : 0;
+  const finalUsd     = totalUsd * (1 - discountPct / 100);
+  const cfg          = CURRENCY_CONFIG[activeCurrency];
+  const finalAmt     = activeCurrency === 'usd' ? finalUsd : finalUsd * RATES.thbPerUsd;
 
   // Save order to Firestore under the logged-in user
   if (currentUser) {
@@ -555,11 +596,27 @@ function submitSlip() {
       email:         currentUser.email,
       items:         cart.map(i => ({ id: i.id, name: i.name, game: i.game, price: i.price })),
       paymentMethod: selected,
-      totalUsd:      parseFloat(totalUsd.toFixed(2)),
-      totalDisplay:  `${cfg.symbol}${cfg.format(totalAmt)}`,
+      totalUsd:      parseFloat(finalUsd.toFixed(2)),
+      totalDisplay:  `${cfg.symbol}${cfg.format(finalAmt)}`,
+      discountApplied: discountPct,
       status:        'pending',
       createdAt:     firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // If discount was used, clear it from Firestore
+    if (discountPct > 0) {
+      db.collection('users').doc(currentUser.uid).update({ activeDiscount: null });
+      activeDiscount = null;
+    }
+
+    // If order total (before discount) >= $9.99, award a free spin
+    if (totalUsd >= 9.99) {
+      db.collection('users').doc(currentUser.uid).update({
+        spinsAvailable: firebase.firestore.FieldValue.increment(1)
+      }).then(() => {
+        showToast('🎰 You earned a free spin! Visit the Spin page to use it.');
+      });
+    }
   }
 
   closeSlipModal();

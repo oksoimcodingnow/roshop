@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spin Wheel — RoShop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #ff3860; --red-dark: #e0284f;
+      --bg: #f7f6fb; --card: #fff;
+      --text: #1a1a2e; --muted: #666680;
+      --border: rgba(0,0,0,0.08); --radius: 16px;
+      --purple: #7f77dd; --green: #00b06f;
+    }
+    body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* AUTH GATE */
+    .auth-gate {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg,#1a1a2e,#0f3460);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .auth-box {
+      background: white; border-radius: 24px; padding: 2rem;
+      width: 100%; max-width: 360px;
+      display: flex; flex-direction: column; gap: 1rem; text-align: center;
+    }
+    .auth-box h2 { font-size: 22px; font-weight: 900; }
+    .auth-box p  { font-size: 14px; color: var(--muted); }
+    .auth-input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      font-family: 'Nunito', sans-serif; font-size: 15px;
+    }
+    .auth-input:focus { outline: none; border-color: var(--red); }
+    .auth-btn {
+      background: var(--red); color: white; border: none; border-radius: 12px;
+      padding: 13px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; cursor: pointer;
+    }
+    .auth-error { color: var(--red); font-size: 13px; min-height: 18px; }
+
+    /* NAV */
+    nav {
+      background: white; border-bottom: 1px solid var(--border);
+      padding: 0 2rem; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo { font-size: 20px; font-weight: 900; color: var(--red); text-decoration: none; }
+    .nav-right { display: flex; align-items: center; gap: 1rem; font-size: 14px; color: var(--muted); }
+    .back-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 14px; font-family: 'Nunito', sans-serif; font-weight: 700;
+      cursor: pointer; color: var(--text); text-decoration: none; font-size: 14px;
+    }
+    .logout-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 14px; font-family: 'Nunito', sans-serif; font-weight: 700; cursor: pointer; color: var(--text);
+    }
+
+    /* MAIN */
+    .main {
+      max-width: 600px; margin: 0 auto; padding: 2rem 1.5rem;
+      display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+    }
+    .page-title { font-size: 28px; font-weight: 900; text-align: center; }
+    .page-sub   { font-size: 14px; color: var(--muted); text-align: center; }
+
+    /* INFO BOX */
+    .info-box {
+      background: white; border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 1rem 1.5rem; width: 100%; text-align: center;
+    }
+    .info-box .spins-count { font-size: 22px; font-weight: 900; color: var(--red); }
+    .info-box .spins-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .info-box .earn-tip    { font-size: 13px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+    /* ACTIVE DISCOUNT BOX */
+    .discount-box {
+      background: linear-gradient(135deg,#d1e7dd,#a8d5ba);
+      border-radius: var(--radius); padding: 1rem 1.5rem;
+      width: 100%; text-align: center; display: none;
+    }
+    .discount-box .disc-label { font-size: 13px; font-weight: 700; color: #0a3622; }
+    .discount-box .disc-value { font-size: 28px; font-weight: 900; color: #0a3622; }
+    .discount-box .disc-expiry { font-size: 12px; color: #145a32; margin-top: 4px; }
+
+    /* WHEEL WRAPPER */
+    .wheel-wrapper {
+      position: relative; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .wheel-pointer {
+      position: absolute; top: -18px; left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 28px solid var(--red);
+      z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+    canvas { border-radius: 50%; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+
+    /* SPIN BUTTON */
+    .spin-btn {
+      background: var(--red); color: white; border: none; border-radius: 50px;
+      padding: 16px 48px; font-family: 'Nunito', sans-serif; font-weight: 900;
+      font-size: 18px; cursor: pointer; letter-spacing: 0.02em;
+      box-shadow: 0 4px 16px rgba(255,56,96,0.4);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .spin-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,56,96,0.5); }
+    .spin-btn:disabled { background: #ccc; cursor: default; box-shadow: none; transform: none; }
+
+    /* RESULT MODAL */
+    .result-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; align-items: center; justify-content: center; z-index: 2000;
+    }
+    .result-overlay.open { display: flex; }
+    .result-modal {
+      background: white; border-radius: 24px; padding: 2.5rem 2rem;
+      max-width: 360px; width: 90%; text-align: center;
+      display: flex; flex-direction: column; gap: 1rem;
+      animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .result-icon  { font-size: 56px; }
+    .result-title { font-size: 24px; font-weight: 900; }
+    .result-desc  { font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .result-badge {
+      background: linear-gradient(135deg,var(--red),#ff6b6b);
+      color: white; border-radius: 50px; padding: 10px 28px;
+      font-size: 22px; font-weight: 900; display: inline-block; margin: 0 auto;
+    }
+    .result-close {
+      background: var(--bg); border: none; border-radius: 12px; padding: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px;
+      cursor: pointer; color: var(--text);
+    }
+    .result-close:hover { background: var(--border); }
+
+    /* SPINNER */
+    .spinner { width: 36px; height: 36px; border: 4px solid rgba(255,56,96,0.15); border-top-color: var(--red); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 40px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH GATE -->
+  <div class="auth-gate" id="auth-gate">
+    <div class="auth-box">
+      <div style="font-size:32px">🎰</div>
+      <h2>Login to spin</h2>
+      <p>Sign in to use your spins</p>
+      <input type="email"    id="login-email"    class="auth-input" placeholder="Email" />
+      <input type="password" id="login-password" class="auth-input" placeholder="Password" />
+      <div class="auth-error" id="login-error"></div>
+      <button class="auth-btn" onclick="doLogin()">Login</button>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-logo" href="index.html">🎮 RoShop</a>
+    <div class="nav-right">
+      <a class="back-btn" href="index.html">← Back to Shop</a>
+      <span id="user-email-display"></span>
+      <button class="logout-btn" onclick="auth.signOut()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main" id="main-content" style="display:none">
+    <div>
+      <div class="page-title">🎰 Spin Wheel</div>
+      <div class="page-sub">Win discount codes for your next order!</div>
+    </div>
+
+    <!-- ACTIVE DISCOUNT -->
+    <div class="discount-box" id="discount-box">
+      <div class="disc-label">🎉 Active Discount</div>
+      <div class="disc-value" id="disc-value">—</div>
+      <div class="disc-expiry" id="disc-expiry"></div>
+    </div>
+
+    <!-- SPIN COUNT -->
+    <div class="info-box">
+      <div class="spins-count" id="spins-count">0</div>
+      <div class="spins-label">spins available</div>
+      <div class="earn-tip">💡 Place an order of <strong>$9.99 or more</strong> to earn a free spin</div>
+    </div>
+
+    <!-- WHEEL -->
+    <div class="wheel-wrapper">
+      <div class="wheel-pointer"></div>
+      <canvas id="wheel-canvas" width="320" height="320"></canvas>
+    </div>
+
+    <!-- SPIN BUTTON -->
+    <button class="spin-btn" id="spin-btn" onclick="doSpin()" disabled>Spin!</button>
+  </div>
+
+  <div id="loading" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- RESULT MODAL -->
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-modal">
+      <div class="result-icon" id="result-icon">🎉</div>
+      <div class="result-title" id="result-title">You won!</div>
+      <div class="result-badge" id="result-badge" style="display:none"></div>
+      <div class="result-desc" id="result-desc"></div>
+      <button class="result-close" onclick="closeResult()">Back to Shop</button>
+    </div>
+  </div>
+
+  <script>
+    // ── PRIZES ──
+    const PRIZES = [
+      { label: 'No luck',  percent: 0,  color: '#e8e8f0', textColor: '#999' },
+      { label: '5% OFF',   percent: 5,  color: '#ffb3c1', textColor: '#c0392b' },
+      { label: '10% OFF',  percent: 10, color: '#ff8fab', textColor: '#fff' },
+      { label: 'No luck',  percent: 0,  color: '#e8e8f0', textColor: '#999' },
+      { label: '5% OFF',   percent: 5,  color: '#ffb3c1', textColor: '#c0392b' },
+      { label: '15% OFF',  percent: 15, color: '#ff3860', textColor: '#fff' },
+      { label: 'No luck',  percent: 0,  color: '#e8e8f0', textColor: '#999' },
+      { label: '10% OFF',  percent: 10, color: '#ff8fab', textColor: '#fff' },
+      { label: '20% OFF',  percent: 20, color: '#c0392b', textColor: '#fff' },
+      { label: '50% OFF',  percent: 50, color: '#7f77dd', textColor: '#fff' },
+    ];
+
+    const canvas  = document.getElementById('wheel-canvas');
+    const ctx     = canvas.getContext('2d');
+    const cx      = canvas.width  / 2;
+    const cy      = canvas.height / 2;
+    const radius  = canvas.width  / 2 - 6;
+
+    let currentRotation = 0;
+    let isSpinning      = false;
+    let spinsAvailable  = 0;
+    let currentUser     = null;
+
+    // ── AUTH ──
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('auth-gate').style.display = 'none';
+        document.getElementById('user-email-display').textContent = user.email;
+        loadUserData(user.uid);
+      } else {
+        document.getElementById('auth-gate').style.display = 'flex';
+        document.getElementById('loading').style.display   = 'none';
+      }
+    });
+
+    function doLogin() {
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      document.getElementById('login-error').textContent = '';
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(() => { document.getElementById('login-error').textContent = 'Invalid email or password.'; });
+    }
+
+    // ── LOAD USER DATA ──
+    async function loadUserData(uid) {
+      try {
+        const doc  = await db.collection('users').doc(uid).get();
+        const data = doc.data() || {};
+
+        spinsAvailable = data.spinsAvailable || 0;
+
+        // Check active discount
+        if (data.activeDiscount && data.activeDiscount.expiresAt) {
+          const expiry = data.activeDiscount.expiresAt.toDate();
+          if (expiry > new Date()) {
+            showDiscountBox(data.activeDiscount.percent, expiry);
+          } else {
+            // Expired — clear it
+            db.collection('users').doc(uid).update({ activeDiscount: null });
+          }
+        }
+      } catch(e) {
+        spinsAvailable = 0;
+      }
+
+      document.getElementById('loading').style.display       = 'none';
+      document.getElementById('main-content').style.display  = 'flex';
+      document.getElementById('spins-count').textContent     = spinsAvailable;
+      document.getElementById('spin-btn').disabled           = spinsAvailable <= 0;
+
+      drawWheel(currentRotation);
+    }
+
+    // ── SHOW ACTIVE DISCOUNT ──
+    function showDiscountBox(percent, expiry) {
+      const box = document.getElementById('discount-box');
+      box.style.display = 'block';
+      document.getElementById('disc-value').textContent  = percent + '% OFF';
+      document.getElementById('disc-expiry').textContent =
+        'Valid until ' + expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' today — applies automatically at checkout';
+    }
+
+    // ── DRAW WHEEL ──
+    function drawWheel(rotation) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((rotation * Math.PI) / 180);
+
+      const sliceAngle = (2 * Math.PI) / PRIZES.length;
+
+      PRIZES.forEach((prize, i) => {
+        const start = i * sliceAngle - Math.PI / 2;
+        const end   = start + sliceAngle;
+
+        // Slice background
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = prize.color;
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Label
+        ctx.save();
+        ctx.rotate(start + sliceAngle / 2);
+        ctx.textAlign    = 'right';
+        ctx.fillStyle    = prize.textColor;
+        ctx.font         = `bold ${prize.percent === 0 ? 13 : 14}px Nunito, sans-serif`;
+        ctx.fillText(prize.label, radius - 12, 5);
+        ctx.restore();
+      });
+
+      // Center circle
+      ctx.beginPath();
+      ctx.arc(0, 0, 22, 0, 2 * Math.PI);
+      ctx.fillStyle   = 'white';
+      ctx.fill();
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth   = 2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // ── SPIN ──
+    function doSpin() {
+      if (isSpinning || spinsAvailable <= 0) return;
+      isSpinning = true;
+      document.getElementById('spin-btn').disabled = true;
+
+      // Pick a random prize
+      const prizeIndex  = Math.floor(Math.random() * PRIZES.length);
+      const sliceDeg    = 360 / PRIZES.length;
+
+      // Calculate target rotation so prizeIndex lands under pointer
+      const targetAngle  = 360 - (prizeIndex + 0.5) * sliceDeg;
+      const currentMod   = currentRotation % 360;
+      const diff         = (targetAngle - currentMod + 360) % 360;
+      const totalTarget  = currentRotation + 5 * 360 + diff;
+
+      const startRotation = currentRotation;
+      const startTime     = performance.now();
+      const duration      = 4500;
+
+      function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+      function animate(now) {
+        const t       = Math.min((now - startTime) / duration, 1);
+        const eased   = easeOut(t);
+        currentRotation = startRotation + (totalTarget - startRotation) * eased;
+        drawWheel(currentRotation);
+
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          currentRotation = totalTarget % 360;
+          isSpinning = false;
+          onSpinComplete(PRIZES[prizeIndex]);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // ── AFTER SPIN ──
+    async function onSpinComplete(prize) {
+      // Deduct spin
+      spinsAvailable = Math.max(0, spinsAvailable - 1);
+      document.getElementById('spins-count').textContent = spinsAvailable;
+
+      // Build Firestore update
+      const update = { spinsAvailable: firebase.firestore.FieldValue.increment(-1) };
+
+      if (prize.percent > 0) {
+        // Set active discount expiring at midnight today
+        const midnight = new Date();
+        midnight.setHours(23, 59, 59, 999);
+        update.activeDiscount = {
+          percent:   prize.percent,
+          expiresAt: firebase.firestore.Timestamp.fromDate(midnight),
+        };
+        showDiscountBox(prize.percent, midnight);
+      }
+
+      try {
+        await db.collection('users').doc(currentUser.uid).update(update);
+      } catch(e) {}
+
+      // Show result modal
+      if (prize.percent > 0) {
+        document.getElementById('result-icon').textContent    = '🎉';
+        document.getElementById('result-title').textContent   = 'You won!';
+        const badge = document.getElementById('result-badge');
+        badge.textContent    = prize.percent + '% OFF';
+        badge.style.display  = 'inline-block';
+        document.getElementById('result-desc').textContent    =
+          'Your discount is applied automatically at checkout. Valid until midnight today!';
+      } else {
+        document.getElementById('result-icon').textContent    = '😢';
+        document.getElementById('result-title').textContent   = 'Better luck next time!';
+        document.getElementById('result-badge').style.display = 'none';
+        document.getElementById('result-desc').textContent    =
+          'No discount this time. Place another $9.99+ order to earn another spin!';
+      }
+
+      document.getElementById('result-overlay').classList.add('open');
+    }
+
+    function closeResult() {
+      document.getElementById('result-overlay').classList.remove('open');
+      if (spinsAvailable > 0) {
+        document.getElementById('spin-btn').disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
