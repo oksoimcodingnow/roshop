@@ -744,6 +744,7 @@ nav {
 .bg-green  { background: #f0f9e8; }
 .bg-red    { background: #fff0f3; }
 .bg-sky    { background: #e8f7ff; }
+.bg-grey   { background: #f0f0f0; }
 
 /* Custom image inside the item thumbnail — fills the square with padding so it doesn't touch edges */
 .item-img {

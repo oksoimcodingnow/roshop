@@ -130,9 +130,20 @@ let selectedGame = null;
 
 // Filter buttons to show per game
 const GAME_FILTERS = {
-  mm2:     [['all','All'],['knives','🗡️ Knives'],['guns','🔫 Guns']],
-  adoptme: [['all','All'],['pets','🐾 Pets'],['neon','✨ Neon'],['mega','🌟 Mega']],
-  robux:   [], // No category filters for Robux packages
+  mm2: [
+    ['all',         'All'],
+    ['ancients',    '🔴 Ancients'],
+    ['vintages',    '🟤 Vintages'],
+    ['chromas',     '🌈 Chromas'],
+    ['godlies',     '👑 Godlies'],
+    ['legendaries', '💜 Legendaries'],
+    ['rares',       '💙 Rares'],
+    ['uncommons',   '💚 Uncommons'],
+    ['misc',        '🎲 Misc'],
+    ['pets',        '🐾 Pets'],
+  ],
+  adoptme: [['all','All']],
+  robux:   [],
 };
 
 // Section label shown above the item grid per game

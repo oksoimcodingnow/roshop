@@ -238,6 +238,36 @@ What we changed in code:
 - Added a loading spinner while items are being fetched
 - Ran a seed script in the browser console (F12) to copy all 21 items into Firestore
 
+### MM2 tier filter system
+**Before:** MM2 had only "Knives" and "Guns" filter buttons.
+
+**After:** MM2 now uses the real trading tier system as filters.
+
+Tiers added: Ancients, Vintages, Chromas, Godlies, Legendaries, Rares, Uncommons, Misc, Pets.
+
+What changed in code:
+- Updated `GAME_FILTERS.mm2` in `script.js` with all tier buttons
+- Added `.bg-grey` CSS class to `style.css` for commons
+- `bg` field on items must be a CSS class name (`bg-purple`, `bg-red`, etc.) — NOT a gradient string
+
+### Real MM2 inventory migration
+**Before:** MM2 items were AI-generated placeholders (Corrupt, Batwing, etc.) unrelated to actual inventory.
+
+**After:** Real inventory loaded from owner's MM2 trading stock (IDs 100–123).
+
+How it was done:
+- Ran a browser console script to delete all old `game: "mm2"` items
+- Ran a second script to add real inventory with correct tiers, prices, and bg classes
+- Prices stored in Robux (THB ÷ 33.5 × 45)
+
+### Image hosting via GitHub
+Firebase Storage is on the free tier so images are hosted on GitHub instead.
+
+How to add an image:
+1. Upload PNG to GitHub repo root via Add file → Upload files
+2. Raw URL: `https://raw.githubusercontent.com/oksoimcodingnow/roshop/main/FILENAME.png`
+3. Paste URL into item's `img` field in Firestore
+
 ---
 
 ## Bugs We Fixed Along the Way
@@ -251,6 +281,8 @@ What we changed in code:
 | Items not loading | Firebase doesn't work from `file://` | Use Live Server instead |
 | Firestore permission error | Rules blocked writes during seeding | Temporarily set `allow write: if request.auth != null`, seed, then lock back |
 | Duplicate ID 17 | Arctic Reindeer and 400 Robux both had id:17 | Reindeer stays 17, Robux packages renumbered 18–22 |
+| Item cards showed white background | `bg` field was set to gradient strings instead of CSS class names | Use `bg-purple`, `bg-red` etc. — classes defined in `style.css` |
+| Firestore update script returned 0 | Item names in Firestore didn't match the script's tierMap | Run diagnostic first: `snap.docs.forEach(doc => console.log(doc.data().name))` |
 
 ---
 
@@ -260,7 +292,9 @@ What we changed in code:
 - [x] Admin panel — view and manage all orders
 - [x] Order history page — customers can see their past orders
 - [x] Spin wheel — earn spins from $9.99+ orders, win discount codes
-- [ ] AI-generated item images — replace emoji cards with real art
+- [x] MM2 tier filter system — replaced knives/guns with real trading tiers
+- [x] Real MM2 inventory — replaced placeholder items with actual stock
+- [ ] Item images — upload per item to GitHub, add `img` field in Firestore (in progress)
 - [ ] SlipOK integration — auto verify Thai QR payment slips
 - [ ] Custom domain (optional, ~$10-15/year)
 
