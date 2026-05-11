@@ -23,9 +23,9 @@ GitHub: https://github.com/oksoimcodingnow/roshop
 
 ## Workflow: Update Firestore Items (needs temp rule unlock)
 
-1. Firestore → Rules → change items to `allow write: if request.auth != null;` in line 7* → Publish
+1. Firestore → Rules → **line 7** → change to `allow write: if request.auth != null;` → Publish
 2. Open live shop → F12 Console → run script
-3. Lock rules back: `allow write: if false;` → Publish
+3. Firestore → Rules → **line 7** → change back to `allow write: if false;` → Publish
 
 ---
 
@@ -65,6 +65,36 @@ GitHub: https://github.com/oksoimcodingnow/roshop
 - 25 THB → 34 Robux
 
 ---
+
+## Firestore Rules Reference
+
+Always tell the user the exact line number to change. Current rules structure:
+
+```
+Line 1:  rules_version = '2';
+Line 2:  service cloud.firestore {
+Line 3:    match /databases/{database}/documents {
+Line 4:
+Line 5:      match /items/{itemId} {
+Line 6:        allow read: if request.auth != null;
+Line 7:        allow write: if request.auth != null && request.auth.token.email == 'hzdjdndb@gmail.com';
+Line 8:      }
+Line 9:
+Line 10:     match /users/{userId} {
+Line 11:       allow read, write: if request.auth != null && request.auth.uid == userId;
+Line 12:     }
+Line 13:
+Line 14:     match /orders/{orderId} {
+Line 15:       allow create: if request.auth != null;
+Line 16:       allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.token.email == 'hzdjdndb@gmail.com');
+Line 17:       allow write: if request.auth != null && request.auth.token.email == 'hzdjdndb@gmail.com';
+Line 18:     }
+Line 19:
+Line 20:   }
+Line 21: }
+```
+
+When telling the user to change a rule, always say "go to Firestore Rules → line X → change to: ..."
 
 ## Remaining To-Do
 - [ ] Add images for all MM2 items (GitHub → Firestore img field)
