@@ -579,7 +579,7 @@ function previewSlip(input) {
 }
 
 // Called when the user submits their slip — saves order to Firestore then clears cart.
-function submitSlip() {
+async function submitSlip() {
   const selected     = document.querySelector('input[name="payment"]:checked').value;
   const totalUsd     = cart.reduce((sum, item) =>
     sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd), 0);
@@ -588,6 +588,24 @@ function submitSlip() {
   const finalUsd     = totalUsd * (1 - discountPct / 100);
   const cfg          = CURRENCY_CONFIG[activeCurrency];
   const finalAmt     = activeCurrency === 'usd' ? finalUsd : finalUsd * RATES.thbPerUsd;
+
+  const slipFile = document.getElementById('slip-file').files[0];
+  let slipUrl = null;
+
+  if (slipFile) {
+    try {
+      const storageRef = firebase.storage().ref();
+      const slipRef = storageRef.child(`slips/${currentUser.uid}/${Date.now()}-${slipFile.name}`);
+      const snapshot = await slipRef.put(slipFile);
+      slipUrl = await snapshot.ref.getDownloadURL();
+      showToast('⬆️ Slip uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading slip:', error);
+      showToast('⚠️ Error uploading slip.');
+      return;
+    }
+  }
+
 
   // Save order to Firestore under the logged-in user
   if (currentUser) {
@@ -600,6 +618,7 @@ function submitSlip() {
       totalDisplay:  `${cfg.symbol}${cfg.format(finalAmt)}`,
       discountApplied: discountPct,
       status:        'pending',
+      slipUrl:       slipUrl, // Add the slip URL here
       createdAt:     firebase.firestore.FieldValue.serverTimestamp()
     });
 
