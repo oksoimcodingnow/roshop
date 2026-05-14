@@ -22,6 +22,9 @@ add them to a cart, and pay via Thai QR / TrueMoney / Crypto by uploading a paym
 | `firebase-init.js` | Connects the app to Firebase (our backend) |
 | `firestore.rules` | Firestore permissions for users, orders, items, and admin updates |
 | `storage.rules` | Firebase Storage permissions for slips and item images |
+| `WORKFLOW.md` | Branch/PR/review workflow for safe changes |
+| `.github/pull_request_template.md` | Checklist that appears when opening a GitHub PR |
+| `.handshake/` | AI review packet workflow for Claude/ChatGPT/Codex collaboration |
 | `payment/my bank acc.jpg` | SCB QR code image shown at checkout |
 
 ---
