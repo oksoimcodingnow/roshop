@@ -272,6 +272,42 @@ let currentSearch = '';      // The current search query string (lowercase, trim
 let cart = [];               // Array of item objects the user has added to their cart
 let toastTimer;              // Holds the setTimeout ID so we can cancel it if needed
 
+// Escapes Firestore/user-controlled text before inserting it with innerHTML.
+// This keeps item/order names from being interpreted as HTML.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
+}
+
+function safeCssToken(value) {
+  return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+function safeImageUrl(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, window.location.href);
+    return ['http:', 'https:'].includes(url.protocol) ? escapeHtml(raw) : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function itemUsdPrice(item) {
+  const price = Number(item && item.price) || 0;
+  return item && item.game === 'robux' ? price : price / RATES.robuxPerUsd;
+}
+
+function cartTotalUsd() {
+  return cart.reduce((sum, item) => sum + itemUsdPrice(item), 0);
+}
+
 
 // ── FILTERING & SORTING ──
 // Returns a filtered + sorted copy of ITEMS based on the current state variables.
@@ -289,15 +325,15 @@ function getFiltered() {
 
   if (currentSearch) {
     list = list.filter(item =>
-      item.name.toLowerCase().includes(currentSearch) ||
-      item.desc.toLowerCase().includes(currentSearch)
+      String(item.name || '').toLowerCase().includes(currentSearch) ||
+      String(item.desc || '').toLowerCase().includes(currentSearch)
     );
   }
 
   const sort = document.getElementById('sort-select').value;
-  if (sort === 'low')  list.sort((a, b) => a.price - b.price);
-  if (sort === 'high') list.sort((a, b) => b.price - a.price);
-  if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+  if (sort === 'low')  list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+  if (sort === 'high') list.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+  if (sort === 'name') list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
   return list;
 }
@@ -329,13 +365,23 @@ function renderItems() {
 
   grid.innerHTML = list.map((item, i) => {
     let priceHtml;
+    const itemId = escapeHtml(item.id);
+    const itemName = escapeHtml(item.name);
+    const itemDesc = escapeHtml(item.desc);
+    const itemEmoji = escapeHtml(item.emoji);
+    const itemBg = safeCssToken(item.bg);
+    const itemBadgeCls = safeCssToken(item.badgeCls);
+    const itemBadge = escapeHtml(item.badge);
+    const imgUrl = safeImageUrl(item.img);
 
     if (item.game === 'robux') {
       // Robux packages: price is USD, show R$ amount big + cost small
-      const cost = activeCurrency === 'usd' ? item.price : item.price * RATES.thbPerUsd;
+      const price = Number(item.price) || 0;
+      const cost = activeCurrency === 'usd' ? price : price * RATES.thbPerUsd;
+      const robuxAmt = Number(item.robuxAmt) || 0;
       priceHtml = `
         <div class="pkg-price">
-          <div class="pkg-robux">R$ ${item.robuxAmt.toLocaleString()}</div>
+          <div class="pkg-robux">R$ ${robuxAmt.toLocaleString()}</div>
           <div class="pkg-cost">
             <div class="rbx-dot" style="background:${cfg.dotColor}">${cfg.symbol}</div>
             ${cfg.format(cost)}
@@ -343,7 +389,7 @@ function renderItems() {
         </div>`;
     } else {
       // MM2 / Adopt Me: price is Robux, convert to active currency
-      const usd    = item.price / RATES.robuxPerUsd;
+      const usd    = itemUsdPrice(item);
       const amount = activeCurrency === 'usd' ? usd : usd * RATES.thbPerUsd;
       priceHtml = `
         <div class="price">
@@ -354,16 +400,16 @@ function renderItems() {
 
     return `
     <div class="item-card${item.game==='robux'?' robux-card':''}" style="animation-delay:${i*0.04}s">
-      <div class="item-thumb ${item.bg}">
-        ${item.img ? `<img src="${item.img}" alt="${item.name}" class="item-img"/>` : `<span>${item.emoji}</span>`}
-        <span class="badge ${item.badgeCls}">${item.badge}</span>
+      <div class="item-thumb ${itemBg}">
+        ${imgUrl ? `<img src="${imgUrl}" alt="${itemName}" class="item-img"/>` : `<span>${itemEmoji}</span>`}
+        <span class="badge ${itemBadgeCls}">${itemBadge}</span>
       </div>
       <div class="item-info">
-        <div class="item-name">${item.name}</div>
-        <div class="item-desc">${item.desc}</div>
+        <div class="item-name">${itemName}</div>
+        <div class="item-desc">${itemDesc}</div>
         <div class="item-footer">
           ${priceHtml}
-          <button class="buy-btn" onclick="addToCart(${item.id})">Buy</button>
+          <button class="buy-btn" data-item-id="${itemId}" onclick="addToCart(this.dataset.itemId)">Buy</button>
         </div>
       </div>
       ${item.game==='robux' ? '<div class="tax-note">* +30% Roblox tax not included</div>' : ''}
@@ -396,7 +442,11 @@ function handleSearch() {
 // Finds the item by id and pushes it into the cart array.
 // Multiple clicks = multiple copies of the same item (intentional).
 function addToCart(id) {
-  const item = ITEMS.find(i => i.id === id); // Locate the item object by its id
+  const item = ITEMS.find(i => String(i.id) === String(id)); // Locate the item object by its id
+  if (!item) {
+    showToast('Item not found. Please refresh and try again.');
+    return;
+  }
   cart.push(item);
   updateCartCount();                          // Refresh the red badge number on the cart button
   showToast(`${item.emoji} ${item.name} added to cart!`); // Show pop-up notification
@@ -469,9 +519,9 @@ function renderCart() {
 
   el.innerHTML = cart.map((item, i) => `
     <div class="cart-item">
-      <div class="cart-item-icon ${item.bg}">${item.emoji}</div>
+      <div class="cart-item-icon ${safeCssToken(item.bg)}">${escapeHtml(item.emoji)}</div>
       <div class="cart-item-info">
-        <div class="name">${item.name}</div>
+        <div class="name">${escapeHtml(item.name)}</div>
         <div class="cprice">${itemDisplayPrice(item)}</div>
       </div>
       <button class="remove-btn" onclick="removeFromCart(${i})">✕</button>
@@ -479,9 +529,7 @@ function renderCart() {
   `).join('');
 
   // Total: sum in USD then convert, keeping robux packages (already USD) separate
-  const totalUsd = cart.reduce((sum, item) => {
-    return sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd);
-  }, 0);
+  const totalUsd = cartTotalUsd();
 
   // Apply active discount if available
   const discountPct      = (activeDiscount && activeDiscount.expiresAt &&
@@ -528,11 +576,10 @@ function selectPayment(input) {
 function checkout() {
   if (!cart.length) return;
   const selected = document.querySelector('input[name="payment"]:checked').value;
-  const total    = cart.reduce((sum, item) => sum + item.price, 0);
 
   // Build the order summary shown at the top of the slip modal
   const cfg    = CURRENCY_CONFIG[activeCurrency];
-  const usd    = total / RATES.robuxPerUsd;
+  const usd    = cartTotalUsd();
   const amount = activeCurrency === 'usd' ? usd : usd * RATES.thbPerUsd;
 
   document.getElementById('slip-summary').innerHTML = `
@@ -580,9 +627,19 @@ function previewSlip(input) {
 
 // Called when the user submits their slip — saves order to Firestore then clears cart.
 async function submitSlip() {
+  if (!currentUser) {
+    showToast('Please log in before submitting an order.');
+    return;
+  }
+  if (!cart.length) {
+    showToast('Your cart is empty.');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submit-slip-btn');
+  const originalText = submitBtn.textContent;
   const selected     = document.querySelector('input[name="payment"]:checked').value;
-  const totalUsd     = cart.reduce((sum, item) =>
-    sum + (item.game === 'robux' ? item.price : item.price / RATES.robuxPerUsd), 0);
+  const totalUsd     = cartTotalUsd();
   const discountPct  = (activeDiscount && activeDiscount.expiresAt &&
     activeDiscount.expiresAt.toDate() > new Date()) ? activeDiscount.percent : 0;
   const finalUsd     = totalUsd * (1 - discountPct / 100);
@@ -590,26 +647,25 @@ async function submitSlip() {
   const finalAmt     = activeCurrency === 'usd' ? finalUsd : finalUsd * RATES.thbPerUsd;
 
   const slipFile = document.getElementById('slip-file').files[0];
-  let slipUrl = null;
-
-  if (slipFile) {
-    try {
-      const storageRef = firebase.storage().ref();
-      const slipRef = storageRef.child(`slips/${currentUser.uid}/${Date.now()}-${slipFile.name}`);
-      const snapshot = await slipRef.put(slipFile);
-      slipUrl = await snapshot.ref.getDownloadURL();
-      showToast('⬆️ Slip uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading slip:', error);
-      showToast('⚠️ Error uploading slip.');
-      return;
-    }
+  if (!slipFile) {
+    showToast('Please upload your payment slip first.');
+    return;
   }
 
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
 
-  // Save order to Firestore under the logged-in user
-  if (currentUser) {
-    db.collection('orders').add({
+  let slipUrl = null;
+
+  try {
+    const storageRef = firebase.storage().ref();
+    const safeFileName = slipFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const slipRef = storageRef.child(`slips/${currentUser.uid}/${Date.now()}-${safeFileName}`);
+    const snapshot = await slipRef.put(slipFile);
+    slipUrl = await snapshot.ref.getDownloadURL();
+
+    // Save order to Firestore under the logged-in user
+    await db.collection('orders').add({
       userId:        currentUser.uid,
       email:         currentUser.email,
       items:         cart.map(i => ({ id: i.id, name: i.name, game: i.game, price: i.price })),
@@ -618,30 +674,36 @@ async function submitSlip() {
       totalDisplay:  `${cfg.symbol}${cfg.format(finalAmt)}`,
       discountApplied: discountPct,
       status:        'pending',
-      slipUrl:       slipUrl, // Add the slip URL here
+      slipUrl:       slipUrl,
       createdAt:     firebase.firestore.FieldValue.serverTimestamp()
     });
 
     // If discount was used, clear it from Firestore
     if (discountPct > 0) {
-      db.collection('users').doc(currentUser.uid).update({ activeDiscount: null });
+      await db.collection('users').doc(currentUser.uid).update({ activeDiscount: null });
       activeDiscount = null;
     }
 
     // If order total (before discount) >= $9.99, award a free spin
     if (totalUsd >= 9.99) {
-      db.collection('users').doc(currentUser.uid).update({
+      await db.collection('users').doc(currentUser.uid).update({
         spinsAvailable: firebase.firestore.FieldValue.increment(1)
-      }).then(() => {
-        showToast('🎰 You earned a free spin! Visit the Spin page to use it.');
       });
     }
-  }
 
-  closeSlipModal();
-  showToast('📋 Order submitted! We\'ll verify your slip and confirm shortly.');
-  cart = [];
-  updateCartCount();
+    submitBtn.textContent = originalText;
+    closeSlipModal();
+    showToast(totalUsd >= 9.99
+      ? 'Order submitted! You earned a free spin.'
+      : 'Order submitted! We will verify your slip shortly.');
+    cart = [];
+    updateCartCount();
+  } catch (error) {
+    console.error('Error submitting order:', error);
+    showToast('Could not submit order. Please try again.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
 }
 
 

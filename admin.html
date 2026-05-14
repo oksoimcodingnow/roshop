@@ -288,6 +288,20 @@
     let allOrders = [];
     let activeFilter = 'all';
 
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]);
+    }
+
+    function safeCssToken(value) {
+      return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+    }
+
     // ── AUTH ──
     auth.onAuthStateChanged(user => {
       if (user && user.email === ADMIN_EMAIL) {
@@ -360,30 +374,31 @@
       }
 
       list.innerHTML = filtered.map(order => {
-        const itemNames = (order.items || []).map(i => i.name).join(', ');
+        const itemNames = (order.items || []).map(i => escapeHtml(i.name)).join(', ');
         const date = order.createdAt
           ? new Date(order.createdAt.seconds * 1000).toLocaleString()
           : '—';
         const isPending = order.status === 'pending';
+        const status = safeCssToken(order.status || 'pending');
         const slipBtn = order.slipUrl
-          ? `<button class="btn-slip" onclick="viewSlip('${order.slipUrl}')">🧾 View Slip</button>`
+          ? `<button class="btn-slip" data-slip-url="${escapeHtml(order.slipUrl)}" onclick="viewSlip(this.dataset.slipUrl)">🧾 View Slip</button>`
           : '';
 
         return `
-          <div class="order-card" id="order-${order.id}">
+          <div class="order-card" id="order-${escapeHtml(order.id)}">
             <div class="order-meta">
-              <div class="order-id">Order #${order.id}</div>
-              <div class="order-email">${order.email || '—'}</div>
+              <div class="order-id">Order #${escapeHtml(order.id)}</div>
+              <div class="order-email">${escapeHtml(order.email || '—')}</div>
               <div class="order-items">${itemNames || '—'}</div>
               <div class="order-footer">
                 <span class="order-total">$${(order.totalUsd || 0).toFixed(2)}</span>
-                <span class="order-payment">${order.paymentMethod || '—'}</span>
-                <span class="order-date">${date}</span>
-                <span class="status-badge status-${order.status}">${order.status}</span>
+                <span class="order-payment">${escapeHtml(order.paymentMethod || '—')}</span>
+                <span class="order-date">${escapeHtml(date)}</span>
+                <span class="status-badge status-${status}">${escapeHtml(order.status || 'pending')}</span>
               </div>
             </div>
             <div class="order-actions">
-              <button class="btn-deliver" onclick="markDelivered('${order.id}')" ${!isPending ? 'disabled' : ''}>
+              <button class="btn-deliver" data-order-id="${escapeHtml(order.id)}" onclick="markDelivered(this.dataset.orderId)" ${!isPending ? 'disabled' : ''}>
                 ${isPending ? '✅ Mark Delivered' : 'Delivered'}
               </button>
               ${slipBtn}
@@ -406,8 +421,12 @@
 
     // ── SLIP LIGHTBOX ──
     function viewSlip(url) {
-      document.getElementById('lightbox-img').src = url;
-      document.getElementById('lightbox').classList.add('open');
+      try {
+        const parsed = new URL(url, window.location.href);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return;
+        document.getElementById('lightbox-img').src = parsed.href;
+        document.getElementById('lightbox').classList.add('open');
+      } catch (_) {}
     }
     function closeLightbox() {
       document.getElementById('lightbox').classList.remove('open');

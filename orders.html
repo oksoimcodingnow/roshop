@@ -151,6 +151,20 @@
   </div>
 
   <script>
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[ch]);
+    }
+
+    function safeCssToken(value) {
+      return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+    }
+
     auth.onAuthStateChanged(user => {
       if (user) {
         document.getElementById('auth-gate').style.display = 'none';
@@ -194,9 +208,10 @@
         const date = order.createdAt
           ? new Date(order.createdAt.seconds * 1000).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
           : '—';
+        const status = safeCssToken(order.status || 'pending');
         const itemRows = (order.items || []).map(item => `
           <div class="order-item-row">
-            <span class="item-name">${item.emoji || ''} ${item.name}</span>
+            <span class="item-name">${escapeHtml(item.emoji || '')} ${escapeHtml(item.name || '')}</span>
             <span class="item-price">$${(item.price || 0).toFixed(2)}</span>
           </div>
         `).join('');
@@ -205,14 +220,14 @@
           <div class="order-card">
             <div class="order-top">
               <div>
-                <div class="order-id">Order #${order.id}</div>
-                <div class="order-date">${date}</div>
+                <div class="order-id">Order #${escapeHtml(order.id)}</div>
+                <div class="order-date">${escapeHtml(date)}</div>
               </div>
-              <span class="status-badge status-${order.status}">${order.status}</span>
+              <span class="status-badge status-${status}">${escapeHtml(order.status || 'pending')}</span>
             </div>
             <div class="order-items">${itemRows}</div>
             <div class="order-footer">
-              <span class="order-payment">💳 ${order.paymentMethod || '—'}</span>
+              <span class="order-payment">💳 ${escapeHtml(order.paymentMethod || '—')}</span>
               <span class="order-total">Total: $${(order.totalUsd || 0).toFixed(2)}</span>
             </div>
           </div>

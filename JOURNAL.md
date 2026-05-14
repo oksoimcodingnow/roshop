@@ -20,6 +20,8 @@ add them to a cart, and pay via Thai QR / TrueMoney / Crypto by uploading a paym
 | `style.css` | All colours, layouts, and animations |
 | `script.js` | All the logic — cart, filters, payments, login |
 | `firebase-init.js` | Connects the app to Firebase (our backend) |
+| `firestore.rules` | Firestore permissions for users, orders, items, and admin updates |
+| `storage.rules` | Firebase Storage permissions for slips and item images |
 | `payment/my bank acc.jpg` | SCB QR code image shown at checkout |
 
 ---
@@ -88,37 +90,23 @@ Data is stored in **collections** (like folders) with **documents** (like files)
 
 ---
 
-## Firestore Security Rules
+## Firebase Security Rules
 
 These control who can read or write the database from the browser.
-Set them in: Firebase Console → Firestore → Rules tab.
+They are now version-controlled instead of living only in the Firebase Console:
 
+| File | What it controls |
+|------|------------------|
+| `firestore.rules` | Items, users, orders, admin order status updates |
+| `storage.rules` | Payment slip image uploads and item image uploads |
+
+Deploy them with:
+
+```bash
+firebase deploy --only firestore:rules,storage
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
 
-    // Items: anyone logged in can read, nobody can write from browser
-    match /items/{itemId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // Users: you can only read/write your own profile
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Orders: anyone logged in can create, only the owner can read
-    match /orders/{orderId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow write: if false;
-    }
-
-  }
-}
-```
+Important: spin rewards are still decided in browser code, so rules can limit profile-field abuse but cannot make the spin economy perfectly fraud-proof. The full secure version should move spin awarding/discount creation to a Cloud Function.
 
 ---
 
